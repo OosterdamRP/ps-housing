@@ -1,4 +1,4 @@
-QBCore = exports[Config.Core]:GetCoreObject()
+QBCore = exports['qbx-core']:GetCoreObject()
 -- PSCore = exports['ps-core']:GetCoreObject()
 
 local dbloaded = false
