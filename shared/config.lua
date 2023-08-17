@@ -7,10 +7,11 @@ exports('GetApartments', function() return ApartmentsTable end)
 Config = {}
 
 -- If you're not utilizing ox_lib, it's time to question your approach.
+Config.Core = 'qbx-core'
 Config.Target = "ox" -- "ox" or "qb"
 Config.Notify = "ox" -- "ox" or "qb"
 Config.Radial = "ox" -- "ox" or "qb"
-Config.Inventory = "qb" -- "ox" or "qb"
+Config.Inventory = "ox" -- "ox" or "qb"
 Config.Logs = "qb" -- "qb"
 
 -- Anyone provided with keys to a property has the ability to modify its furnishings.
