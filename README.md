@@ -317,3 +317,892 @@ ensure fivem-freecam
 * [Project Sloth Team](https://discord.gg/projectsloth)
 * [K4MB1](https://www.k4mb1maps.com/)
 * [Candrex](https://github.com/CandrexDev)
+
+# Add this to ps-housing:
+## client/client.lua 
+```lua
+function HouseTrack(propertyId)
+    local coords
+
+    if PropertiesTable[propertyId].propertyData.apartment ~= nil then
+        local getConfigName = PropertiesTable[propertyId].propertyData.apartment
+        coords = Config.Apartments[getConfigName].door
+    else
+        coords = PropertiesTable[propertyId].propertyData.door_data
+    end
+
+    SetNewWaypoint(coords.x, coords.y)
+end
+
+exports("HouseTrack", HouseTrack)
+```
+
+## server/server.lua
+```lua
+lib.callback.register("ps-housing:server:GetPlayerProperties", function(source)
+    local Player = QBCore.Functions.GetPlayer(source)
+    local Properties = {}
+    local citizenid = Player.PlayerData.citizenid
+
+    while dbloaded == false do
+        Wait(2000)
+    end
+
+    for _, v in pairs(PropertiesTable) do
+        local propertyData = v.propertyData
+
+        while not propertyData do
+            Wait(500)
+        end
+
+        local checkAccess = lib.table.contains(propertyData.has_access, citizenid)
+        if propertyData.owner == citizenid or checkAccess then
+            local fullName = ""
+            local Haccess = false
+            local streeto
+
+            if propertyData.street == nil and propertyData.apartment ~= nil then
+                streeto = propertyData.apartment
+            elseif propertyData.street ~= nil then
+                streeto = propertyData.street
+            else
+                streeto = "Something is broken"
+            end
+
+            local HouseName = streeto .. " " .. propertyData.property_id
+            local checkNum = #propertyData.has_access
+            local numAccess = "Shared with: " .. #propertyData.has_access .. " friends"
+            
+            local getName = QBCore.Functions.GetPlayerByCitizenId(propertyData.owner) or QBCore.Functions.GetOfflinePlayerByCitizenId(propertyData.owner)
+            local playerData = getName.PlayerData
+            if playerData then
+                fullName = playerData.charinfo.firstname .. " " .. playerData.charinfo.lastname
+            end
+
+            if propertyData.owner == citizenid then
+                if checkNum < 1 then
+                    numAccess = "Not shared"
+                elseif checkNum == 1 then
+                    numAccess = "Shared with: " .. #propertyData.has_access .. " friend"
+                else
+                    numAccess = "Shared with: " .. #propertyData.has_access .. " friends"
+                end
+                Haccess = true
+            else
+                numAccess = "It's not your property"
+                Haccess = false
+            end
+
+            Properties[#Properties + 1] = {
+                fullname = fullName,
+                houseName = HouseName,
+                shellName = propertyData.shell,
+                propertyId = propertyData.property_id,
+                has_access = Haccess,
+                numAccess = numAccess,
+                houseIcon = propertyData.apartment and "fa-home" or "fa-building",
+                numAccessNum = #propertyData.has_access,
+                garageStatus = propertyData.garage_data.x and "Have garage" or "Doesn't have garage"
+            }
+            print("garage_data: ", propertyData.garage_data.x)
+        end
+    end
+    return Properties
+end)
+```
+
+# Renewed qb-phone compatibility
+
+
+# Add this to qb-phone
+## Add  into fxmanifest.lua:shared_scripts`
+```lua
+'ox_lib/init.lua',
+```
+## HTML
+```lua
+                    <div class="houses-app">
+                        
+                        <div class="house-container">
+                            <div class="tabs">
+                                <button class="tab active">Owned</button>
+                                <button class="tab">Shared</button>
+                            </div>
+                            <div id="owned" class="tab-content">
+                                <p class="no-properties-message" style="display: none;">You don't own any property...</p>
+                                <div class="property-card">
+                                    <div class="property-header">
+                                        <h3 class="property-address">123 Main St, City</h3>
+                                        <i class="fas fa-home property-icon"></i>
+                                    </div>
+                                    <div class="property-info">
+                                        <i class="fas fa-box info-icon" title="Shell"></i>
+                                        <i class="fas fa-user-friends users-icon" title="3 Users"></i>
+                                        <i class="fas fa-car info-icon" title="Garage"></i>
+                                    </div>
+                                    <div class="owner-options">
+                                        <div class="add-user-section">
+                                            <button class="add-access-btn"><i class="fas fa-plus"></i></button>
+                                            <div class="user-input-section" style="display: none;">
+                                                <input type="text" class="user-input" placeholder="Add User">
+                                            </div>
+                                        </div>
+                                        <ul class="access-list">
+                                            <li>
+                                                <i class="fas fa-user user-icon"></i>
+                                                <span>John Doe</span>
+                                                <i class="fas fa-times remove-icon"></i>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="shared" class="tab-content" style="display: none;">
+                                <p class="no-properties-message" style="display: none;">You don't have the keys to someone else's property</p>
+                                <div class="property-card">
+                                    <div class="property-header">
+                                        <h3 class="property-address">456 Elm St, City</h3>
+                                        <i class="fas fa-building property-icon"></i>
+                                    </div>
+                                    <div class="property-info">
+                                        <i class="fas fa-box info-icon" title="Shell"></i>
+                                        <i class="fas fa-user-friends users-icon" title="3 Users"></i>
+                                        <i class="fas fa-car info-icon" title="Garage"></i>
+                                    </div>
+                                    <div class="owner-options">
+                                        <div class="add-user-section">
+                                            <button class="add-access-btn"><i class="fas fa-plus"></i></button>
+                                            <div class="user-input-section" style="display: none;">
+                                                <input type="text" class="user-input" placeholder="Add User">
+                                            </div>
+                                        </div>
+                                        <ul class="access-list">
+                                            <li>
+                                                <i class="fas fa-user user-icon"></i>
+                                                <span>John Doe</span>
+                                                <i class="fas fa-times remove-icon"></i>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>            
+                        </div>
+                        
+                    </div>
+```
+## houses.js
+```js
+let house;
+let propertyId;
+
+$(document).on('click', '.tab', function() {
+    $('.tab-content').hide();
+    $('.tab').removeClass('active');
+    $(this).addClass('active');
+    if ($(this).text() === 'Owned') {
+        $('#owned').show();
+    } else if ($(this).text() === 'Shared') {
+        $('#shared').show();
+    }
+});
+
+$(document).on('click', '.property-card', function(e){
+    e.stopPropagation();
+    var ownerOptions = $(this).find(".owner-options");
+    ownerOptions.toggle();
+    var HouseData = $(this).data('HouseData');
+    if (HouseData && HouseData.propertyId) {
+        propertyId = HouseData.propertyId;
+    } else {
+        console.error("HouseData not found or doesn't have a propertyId:", HouseData);
+        return;
+    }
+    if (HouseData.numAccessNum > 0 && HouseData.has_access) {
+        var sharedContainer = [];
+        var self = this;
+        $.post("https://qb-phone/GetPlayersWithAccess", JSON.stringify({
+            propertyId: propertyId,
+        }), function(playersWithAccess){
+            if (playersWithAccess.length === 0) {
+                $(self).find(".access-list").html('<li>No shared players.</li>');
+            } else {
+                $.each(playersWithAccess, function(index, sharedPlayer){
+                    if (!sharedPlayer.citizenid) {
+                        console.error("sharedPlayer doesn't have a citizenid property:", sharedPlayer);
+                        return;
+                    }
+                    var playerName = sharedPlayer.name;
+                    var sharedItem = '<li data-playerId=\'' + JSON.stringify(sharedPlayer) + '\'><i class="fas fa-user user-icon"></i><span>' + playerName + '</span><i class="fas fa-times remove-icon"></i></li>';
+                    sharedContainer.push(sharedItem);
+                });
+                $(self).find(".access-list").html(sharedContainer.join(''));
+            }
+        });
+    }
+});
+
+function ConfirmationFrame() {
+    $('.spinner-input-frame').css("display", "flex");
+    setTimeout(function () {
+        $('.spinner-input-frame').css("display", "none");
+        $('.checkmark-input-frame').css("display", "flex");
+        setTimeout(function () {
+            $('.checkmark-input-frame').css("display", "none");
+        }, 2000)
+    }, 1000)
+}
+
+function closeApp() {
+    QB.Phone.Animations.TopSlideUp('.phone-application-container', 400, -160);
+    QB.Phone.Animations.TopSlideUp('.'+QB.Phone.Data.currentApplication+"-app", 400, -160);
+    setTimeout(function(){
+        QB.Phone.Functions.ToggleApp(QB.Phone.Data.currentApplication, "none");
+    }, 400)
+    QB.Phone.Functions.HeaderTextColor("white", 300);
+    QB.Phone.Data.currentApplication = null;
+}
+
+$(document).on('click', '.remove-icon', function(e){
+    e.stopPropagation();
+    
+    var listItem = $(this).closest('li');
+    var playerIdDataString = listItem.attr('data-playerId');
+    
+    if (playerIdDataString) {
+        var playerIdData = JSON.parse(playerIdDataString);
+    }
+
+    if (!playerIdData || !playerIdData.citizenid) {
+        console.error("playerId data attribute not found or doesn't have a citizenid property:", playerIdData);
+        return;
+    }
+
+    var playerId = playerIdData.citizenid;
+    var houseData = $(this).closest('.property-card').data('HouseData');
+
+    $.post("https://qb-phone/KickPlayer", JSON.stringify({
+        propertyId: houseData.propertyId,
+        playerId: playerId,
+    }));
+
+    setTimeout(function(){
+        ConfirmationFrame()
+    }, 150);
+
+    closeApp()
+});
+
+
+$(document).on('click', '.property-icon', function(e){
+    e.stopPropagation();
+    var houseData = $(this).closest('.property-card').data('HouseData');
+    $.post("https://qb-phone/gpsProperty", JSON.stringify({
+        house: houseData,
+    }));
+});
+
+$(document).on('click', '.add-access-btn', function(e){
+    e.stopPropagation();
+    var userInputSection = $(this).siblings('.user-input-section');
+    if (userInputSection.is(":visible")) {
+        var stateid = userInputSection.find('.user-input').val();
+        if (stateid !== "") {
+            var houseData = $(this).closest('.property-card').data('HouseData');
+            $.post("https://qb-phone/GiveKeys", JSON.stringify({
+                propertyId: houseData.propertyId,
+                hasAccess: houseData.has_access,
+                id: stateid,
+            }));
+            userInputSection.find('.user-input').val('');
+            userInputSection.hide();
+            setTimeout(function(){
+                ConfirmationFrame()
+            }, 150);
+            closeApp();
+        } else {
+            userInputSection.hide();
+        }
+    } else {
+        userInputSection.show();
+    }
+});
+
+$(document).on('click', '.user-input', function(e){
+    e.stopPropagation();
+});
+
+SetupPlayerHouses = function (Houses) {
+    $("#owned").html('<p class="no-properties-message">You don\'t own any property...</p>');
+    $("#shared").html('<p class="no-properties-message">You don\'t have the keys to someone else\'s property</p>');
+    if (Houses != null) {
+        $.each(Houses, function (i, house) {
+            var Element = '<div class="property-card" id="house-' + i + '">';
+            Element += '<div class="property-header">';
+            Element += '<h3 class="property-address">' + house.houseName + '</h3>';
+            Element += '<i class="fas ' + house.houseIcon + ' property-icon" data-toggle="tooltip" data-placement="top" title="Owner: ' + house.fullname + '<br>Click to set GPS"></i>';
+            Element += '</div>';
+            Element += '<div class="property-info">';
+            Element += '<i class="fas fa-box info-icon" data-toggle="tooltip" data-placement="top" title="' + house.shellName + '"></i>';
+            Element += '<i class="fas fa-user-friends users-icon" data-toggle="tooltip" data-placement="top" title="' + house.numAccess + '"></i>';
+            Element += '<i class="fas fa-car info-icon" data-toggle="tooltip" data-placement="top" title="' + house.garageStatus + '"></i>';
+            Element += '</div>';
+            if (house.has_access) {
+                Element += '<div class="owner-options" style="display: none;">';
+                Element += '<div class="add-user-section">';
+                Element += '<button class="add-access-btn"><i class="fas fa-plus" data-toggle="tooltip" data-placement="top" title="Add player by ID"></i></button>';
+                Element += '<div class="user-input-section" style="display: none;">';
+                Element += '<input type="text" class="user-input" placeholder="STATE ID NOT CITIZEN!">';
+                Element += '</div>';
+                Element += '</div>';
+                Element += '<ul class="access-list">';
+                Element += '</ul>';
+                Element += '</div>';
+            }
+            Element += '</div>';
+            if (house.has_access) {
+                $("#owned").append(Element);
+            } else {
+                $("#shared").append(Element);
+            }
+            $("#house-" + i).data('HouseData', house);
+        });
+
+        if ($("#owned .property-card").length === 0) {
+            console.log("Showing owned no-properties-message");
+            $("#owned .no-properties-message").show();
+        } else {
+            console.log("Hiding owned no-properties-message");
+            $("#owned .no-properties-message").hide();
+        }
+            
+        if ($("#shared .property-card").length === 0) {
+            console.log("Showing shared no-properties-message");
+            $("#shared .no-properties-message").show();
+        } else {
+            console.log("Hiding shared no-properties-message");
+            $("#shared .no-properties-message").hide();
+        }
+
+
+        $('[data-toggle="tooltip"]').tooltip({ html: true });
+    }
+};
+```
+
+## client/houses.lua
+```lua
+-- NUI Callback
+
+RegisterNUICallback('SetupHouses', function(_, cb)
+    lib.callback('ps-housing:server:GetPlayerProperties', false, function(Houses)
+        cb(Houses)
+    end)
+end)
+
+RegisterNUICallback('gpsProperty', function(data, cb)
+    local house = data.house
+    local property = house.propertyId
+
+    exports['ps-housing']:HouseTrack(property)
+
+    --TriggerServerEvent('setPlayerWaypoint', property)
+
+    TriggerEvent('qb-phone:client:CustomNotification', "PROPERTIES", "GPS Marker Set!", "fas fa-car", "#e84118", 5000)
+
+    cb("ok")
+end)
+
+RegisterNUICallback('GiveKeys', function(data, cb)
+    TriggerServerEvent('qb-phone:server:giveKeys', data)
+    cb("ok")
+end)
+
+RegisterNUICallback('KickPlayer', function(data, cb)
+    TriggerServerEvent("ps-housing:server:removeAccess", data.propertyId, data.playerId)
+    cb("ok")
+end)
+
+RegisterNetEvent('qb-phone:client:giveKeys', function(property, toplayer)
+    TriggerServerEvent("ps-housing:server:addAccess", property, toplayer)
+end)
+
+RegisterNUICallback('GetPlayersWithAccess', function(data, cb)
+    local propertyId = data.propertyId
+    local playersWithAccess = lib.callback.await("ps-housing:cb:getPlayersWithAccess", source, propertyId)
+    cb(playersWithAccess)
+end)
+```
+
+## server/houses.lua
+```lua
+RegisterNetEvent('qb-phone:server:giveKeys', function(data)
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    local toplayer = tonumber(data.id)
+    local OtherAsshole = QBCore.Functions.GetPlayer(toplayer)
+    local property = tonumber(data.propertyId)
+
+    if data.hasAccess == false then 
+        TriggerClientEvent("QBCore:Notify", src, 'You are not an owner!', "error")
+        return 
+    end
+    if not OtherAsshole then TriggerClientEvent("QBCore:Notify", src, 'State ID does not exist!', "error") return false end
+    if not data.propertyId then return end
+    if Player.PlayerData.citizenid == OtherAsshole.PlayerData.citizenid then return TriggerClientEvent("QBCore:Notify", src, 'You cannot give keys to yourself!', "error") end
+
+    TriggerClientEvent("qb-phone:client:giveKeys", src, property, toplayer)
+    TriggerClientEvent("QBCore:Notify", src, 'Done!', "success")
+end)
+
+```
+
+## add this to qb-phone/html/app.js
+```js
+                } else if (PressedApplication == "houses") {
+                    $.post('https://qb-phone/SetupHouses', JSON.stringify({}), function(Houses){
+                        SetupPlayerHouses(Houses);
+                    });
+```
+## replace qb-phone/html/css/houses.css with this
+```css
+@import url('https://fonts.googleapis.com/css?family=Lato&display=swap');
+
+.houses-app {
+    display: none;
+    height: 100%;
+    width: 100%;
+    background: #242833;
+    overflow: hidden;
+}
+
+.house-container {
+    padding-top: 4vh !important;
+    padding: 1vh;
+}
+
+.tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1vh;
+}
+
+.tab {
+    background-color: #1c2028;
+    color: #fff;
+    border: none;
+    padding: 0.625vh 1.25vh;
+    margin: 0 0.3125vh;
+    cursor: pointer;
+    border-radius: 0.3125vh;
+    transition: background-color 0.3s;
+}
+
+.tab:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+    transform: translateY(-0.1875vh);
+    box-shadow: 0 0.25vh 0.5vh rgba(0, 0, 0, 0.1);
+}
+
+.tab.active {
+    background-color: rgba(0, 0, 0, 0.7);
+    box-shadow: 0 0.25vh 0.5vh rgba(0, 0, 0, 0.2);
+}
+
+.property-card {
+    max-width: 25vw;
+    background-color: #1c2028;
+    border-radius: 1.25vh;
+    box-shadow: 0 0.25vh 0.5vh rgba(0, 0, 0, 0.1);
+    margin: 1.25vh auto;
+    padding: 1.25vh;
+    color: #1c2028;
+    transition: transform 0.3s;
+    cursor: pointer;
+}
+
+.property-card:hover {
+    transform: translateY(-0.3125vh);
+}
+
+.property-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 0.125vh solid white;
+    padding-bottom: 0.625vh;
+}
+
+.property-address {
+    color: white;
+    margin: 0;
+    font-size: 1.25vh;
+}
+
+.property-icon, .info-icon, .remove-icon, .users-icon {
+    font-size: 1.5vh;
+    margin-left: 0.625vh;
+    color: white;
+}
+
+.property-icon:hover, .info-icon:hover, .remove-icon:hover, .users-icon:hover {
+    transform: scale(1.2);
+    transition: transform 0.3s;
+}
+
+.property-info {
+    display: flex;
+    align-items: center;
+    margin-top: 0.625vh;
+    justify-content: space-between;
+}
+
+.owner-options {
+    display: none;
+    margin-top: 1.25vh;
+}
+
+.add-access-btn {
+    background-color: white;
+    color: #1c2028;
+    border: none;
+    border-radius: 3vh;
+    width: 3vh; 
+    height: 3vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-bottom: 1vh;
+}
+
+
+.add-access-btn:hover {
+    background-color: #0056b3;
+}
+
+.user-input-section {
+    display: flex;
+    align-items: center;
+    gap: 0.625vh;
+}
+
+.user-input {
+    flex: 1;
+    padding: 0.625vh;
+    border: 0.0625vh solid #e0e0e0;
+    border-radius: 0.3125vh;
+    font-size: 1vh;
+}
+
+.add-user-section {
+    display: flex;
+    align-items: center;
+    gap: 0.625vh;
+}
+
+.access-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 0.0625vh solid #e0e0e0;
+    padding: 0.3125vh 0;
+}
+
+.user-icon {
+    margin-right: 0.625vh;
+    color: #007BFF;
+}
+
+.remove-icon {
+    margin-left: 0.625vh;
+}
+
+.tooltip-inner {
+    white-space: pre-wrap;
+}
+
+.no-properties-message {
+    color: #e0e0e0;
+    font-size: 1.125vh;
+    text-align: center;
+    padding: 1.25vh;
+    margin: 1.25vh auto;
+    max-width: 25vw;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 0.625vh;
+    transition: background-color 0.3s;
+}
+
+.no-properties-message:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+```
+**or replace it with this, if you want light mode:**
+```css
+@import url('https://fonts.googleapis.com/css?family=Lato&display=swap');
+
+.houses-app {
+    display: none;
+    height: 100%;
+    width: 100%;
+    background: #242833;
+    overflow: hidden;
+}
+
+.house-container {
+    padding-top: 4vh !important;
+    padding: 1vh;
+}
+
+.tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1vh;
+}
+
+.tab {
+    background-color: #007BFF;
+    color: #fff;
+    border: none;
+    padding: 0.625vh 1.25vh;
+    margin: 0 0.3125vh;
+    cursor: pointer;
+    border-radius: 0.3125vh;
+    transition: background-color 0.3s;
+}
+
+.tab:hover {
+    background-color: #0056b3;
+    transform: translateY(-0.1875vh);
+    box-shadow: 0 0.25vh 0.5vh rgba(0, 0, 0, 0.1);
+}
+
+.tab.active {
+    background-color: #0056b3;
+    box-shadow: 0 0.25vh 0.5vh rgba(0, 0, 0, 0.2);
+}
+
+.property-card {
+    max-width: 25vw;
+    background-color: #fff;
+    border-radius: 1.25vh;
+    box-shadow: 0 0.25vh 0.5vh rgba(0, 0, 0, 0.1);
+    margin: 1.25vh auto;
+    padding: 1.25vh;
+    color: #333;
+    transition: transform 0.3s;
+    cursor: pointer;
+}
+
+.property-card:hover {
+    transform: translateY(-0.3125vh);
+}
+
+.property-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 0.125vh solid #007BFF;
+    padding-bottom: 0.625vh;
+}
+
+.property-address {
+    color: #007BFF;
+    margin: 0;
+    font-size: 1.25vh;
+}
+
+.property-icon, .info-icon, .remove-icon, .users-icon {
+    font-size: 1.5vh;
+    margin-left: 0.625vh;
+    color: #007BFF;
+}
+
+.property-icon:hover, .info-icon:hover, .remove-icon:hover, .users-icon:hover {
+    transform: scale(1.2);
+    transition: transform 0.3s;
+}
+
+.property-info {
+    display: flex;
+    align-items: center;
+    margin-top: 0.625vh;
+    justify-content: space-between;
+}
+
+.owner-options {
+    display: none;
+    margin-top: 1.25vh;
+}
+
+.add-access-btn {
+    background-color: #007BFF;
+    color: #fff;
+    border: none;
+    border-radius: 3vh;
+    width: 3vh; 
+    height: 3vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-bottom: 1vh;
+}
+
+
+.add-access-btn:hover {
+    background-color: #0056b3;
+}
+
+.user-input-section {
+    display: flex;
+    align-items: center;
+    gap: 0.625vh;
+}
+
+.user-input {
+    flex: 1;
+    padding: 0.625vh;
+    border: 0.0625vh solid #e0e0e0;
+    border-radius: 0.3125vh;
+    font-size: 1vh;
+}
+
+.add-user-section {
+    display: flex;
+    align-items: center;
+    gap: 0.625vh;
+}
+
+.access-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 0.0625vh solid #e0e0e0;
+    padding: 0.3125vh 0;
+}
+
+.user-icon {
+    margin-right: 0.625vh;
+    color: #007BFF;
+}
+
+.remove-icon {
+    margin-left: 0.625vh;
+}
+
+.tooltip-inner {
+    white-space: pre-wrap;
+}
+
+.no-properties-message {
+    color: #e0e0e0;
+    font-size: 1.125vh;
+    text-align: center;
+    padding: 1.25vh;
+    margin: 1.25vh auto;
+    max-width: 25vw;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 0.625vh;
+    transition: background-color 0.3s;
+}
+
+.no-properties-message:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+```
+# Add this to ps-housing
+## client/client.lua
+```lua
+function HouseTrack(propertyId)
+    local coords
+
+    if PropertiesTable[propertyId].propertyData.apartment ~= nil then
+        local getConfigName = PropertiesTable[propertyId].propertyData.apartment
+        coords = Config.Apartments[getConfigName].door
+    else
+        coords = PropertiesTable[propertyId].propertyData.door_data
+    end
+
+    SetNewWaypoint(coords.x, coords.y)
+end
+
+exports("HouseTrack", HouseTrack)
+```
+
+## server/server.lua
+```lua
+lib.callback.register("ps-housing:server:GetPlayerProperties", function(source)
+    local Player = QBCore.Functions.GetPlayer(source)
+    local Properties = {}
+    local citizenid = Player.PlayerData.citizenid
+
+    while dbloaded == false do
+        Wait(2000)
+    end
+
+    for _, v in pairs(PropertiesTable) do
+        local propertyData = v.propertyData
+
+        while not propertyData do
+            Wait(500)
+        end
+
+        local checkAccess = lib.table.contains(propertyData.has_access, citizenid)
+        if propertyData.owner == citizenid or checkAccess then
+            local fullName = ""
+            local Haccess = false
+            local streeto
+
+            if propertyData.street == nil and propertyData.apartment ~= nil then
+                streeto = propertyData.apartment
+            elseif propertyData.street ~= nil then
+                streeto = propertyData.street
+            else
+                streeto = "Something is broken"
+            end
+
+            local HouseName = streeto .. " " .. propertyData.property_id
+            local checkNum = #propertyData.has_access
+            local numAccess = "Shared with: " .. #propertyData.has_access .. " friends"
+            
+            local getName = QBCore.Functions.GetPlayerByCitizenId(propertyData.owner) or QBCore.Functions.GetOfflinePlayerByCitizenId(propertyData.owner)
+            local playerData = getName.PlayerData
+            if playerData then
+                fullName = playerData.charinfo.firstname .. " " .. playerData.charinfo.lastname
+            end
+
+            if propertyData.owner == citizenid then
+                if checkNum < 1 then
+                    numAccess = "Not shared"
+                elseif checkNum == 1 then
+                    numAccess = "Shared with: " .. #propertyData.has_access .. " friend"
+                else
+                    numAccess = "Shared with: " .. #propertyData.has_access .. " friends"
+                end
+                Haccess = true
+            else
+                numAccess = "It's not your property"
+                Haccess = false
+            end
+
+            Properties[#Properties + 1] = {
+                fullname = fullName,
+                houseName = HouseName,
+                shellName = propertyData.shell,
+                propertyId = propertyData.property_id,
+                has_access = Haccess,
+                numAccess = numAccess,
+                houseIcon = propertyData.apartment and "fa-home" or "fa-building",
+                numAccessNum = #propertyData.has_access,
+                garageStatus = propertyData.garage_data.x and "Have garage" or "Doesn't have garage"
+            }
+            print("garage_data: ", propertyData.garage_data.x)
+        end
+    end
+    return Properties
+end)
+```
