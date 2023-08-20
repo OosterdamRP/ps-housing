@@ -722,7 +722,7 @@ end)
     box-shadow: 0 0.25vh 0.5vh rgba(0, 0, 0, 0.1);
     margin: 1.25vh auto;
     padding: 1.25vh;
-    color: #1c2028;
+    color: white;
     transition: transform 0.3s;
     cursor: pointer;
 }
@@ -785,7 +785,8 @@ end)
 
 
 .add-access-btn:hover {
-    background-color: #0056b3;
+    transform: scale(1.2);
+    transition: transform 0.3s;
 }
 
 .user-input-section {
@@ -818,7 +819,7 @@ end)
 
 .user-icon {
     margin-right: 0.625vh;
-    color: #007BFF;
+    color: white;
 }
 
 .remove-icon {
