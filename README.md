@@ -322,7 +322,7 @@ ensure fivem-freecam
 
 
 # Add this to qb-phone
-## Add  into fxmanifest.lua:shared_scripts`
+## Add  into fxmanifest.lua:shared_scripts
 ```lua
 'ox_lib/init.lua',
 ```
