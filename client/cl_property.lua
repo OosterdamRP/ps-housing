@@ -180,7 +180,7 @@ function Property:RegisterGarageZone()
     self.garageZone = lib.zones.box({
         coords = vec3(garageData.x, garageData.y, garageData.z),
         size = vector3(garageData.length + 5.0, garageData.width + 5.0, 3.5),
-        rotation = 45,
+        rotation = garageData.h,
         debug = Config.DebugMode,
         onEnter = function()
             TriggerEvent('qb-garages:client:setHouseGarage', self.property_id, true)
@@ -468,12 +468,11 @@ function Property:LoadFurnitures()
 end
 
 function Property:UnloadFurniture(furniture, index)
-    local entity = furniture.entity
-
+    local entity = furniture?.entity
     if not entity then 
         for i = 1, #self.furnitureObjs do
-            if self.furnitureObjs[i].id == furniture.id then
-                entity = self.furnitureObjs[i].entity
+            if self.furnitureObjs[i]?.id and furniture?.id and self.furnitureObjs[i].id == furniture.id then
+                entity = self.furnitureObjs[i]?.entity
                 break
             end
         end
@@ -490,11 +489,11 @@ function Property:UnloadFurniture(furniture, index)
     end
 
     if index and self.furnitureObjs?[index] then
-        self.furnitureObjs[index] = nil
+        table.remove(self.furnitureObjs, index)
     else 
         for i = 1, #self.furnitureObjs do
-            if self.furnitureObjs[i].id == furniture.id then
-                self.furnitureObjs[i] = nil
+            if self.furnitureObjs[i]?.id and furniture?.id and self.furnitureObjs[i].id == furniture.id then
+                table.remove(self.furnitureObjs, i)
                 break
             end
         end
