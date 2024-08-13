@@ -122,7 +122,7 @@ function Property:RegisterPropertyEntrance()
     end
 
     local function showData()
-        local data = lib.callback.await("ps-housing:cb:getPropertyInfo", source, self.property_id)
+        local data = lib.callback.await("ps-housing:cb:getPropertyInfo", false, self.property_id)
         if not data then return end
 
         local content = "**Owner:** " .. data.owner .. "  \n" .. "**Description:** " .. data.description .. "  \n" .. "**Street:** " .. data.street .. "  \n" .. "**Region:** " .. data.region .. "  \n" .. "**Shell:** " .. data.shell .. "  \n" .. "**For Sale:** " .. (data.for_sale and "Yes" or "No")
@@ -237,8 +237,6 @@ function Property:LeaveShell()
         self.exitTarget = nil
     end
 
-    self:RemoveBlip()
-
     self:RemoveMenus()
 
     self.doorbellPool = {}
@@ -338,7 +336,7 @@ function Property:GiveAccessMenu()
         options = {},
     }
 
-    local players = lib.callback.await("ps-housing:cb:getPlayersInProperty", source, self.property_id) or {}
+    local players = lib.callback.await("ps-housing:cb:getPlayersInProperty", false, self.property_id) or {}
 
     if #players > 0 then
         for i = 1, #players do
@@ -371,7 +369,7 @@ function Property:RevokeAccessMenu()
         options = {},
     }
 
-    local playersWithAccess = lib.callback.await("ps-housing:cb:getPlayersWithAccess", source, self.property_id) or {}
+    local playersWithAccess = lib.callback.await("ps-housing:cb:getPlayersWithAccess", false, self.property_id) or {}
 
     -- only stores names and citizenids in a table so if their offline you can still remove them
     if #playersWithAccess > 0 then
@@ -459,7 +457,7 @@ function Property:LoadFurniture(furniture)
 end
 
 function Property:LoadFurnitures()
-    self.propertyData.furnitures = lib.callback.await('ps-housing:cb:getFurnitures', source, self.property_id) or {}
+    self.propertyData.furnitures = lib.callback.await('ps-housing:cb:getFurnitures', false, self.property_id) or {}
     
     for i = 1, #self.propertyData.furnitures do
         local furniture = self.propertyData.furnitures[i]
@@ -488,9 +486,10 @@ function Property:UnloadFurniture(furniture, index)
         end
     end
 
-    if index and self.furnitureObjs?[index] then
-        table.remove(self.furnitureObjs, index)
-    else 
+    SetEntityAsMissionEntity(entity, true, true)
+    DeleteEntity(entity)
+
+    if not index then
         for i = 1, #self.furnitureObjs do
             if self.furnitureObjs[i]?.id and furniture?.id and self.furnitureObjs[i].id == furniture.id then
                 table.remove(self.furnitureObjs, i)
@@ -498,8 +497,6 @@ function Property:UnloadFurniture(furniture, index)
             end
         end
     end
-
-    DeleteObject(entity)
 end
 
 function Property:UnloadFurnitures()
@@ -534,9 +531,12 @@ function Property:RemoveBlip()
 end
 
 function Property:RemoveProperty()
-    local targetName = string.format("%s_%s", self.propertyData.street, self.property_id)
-
-    Framework[Config.Target].RemoveTargetZone(targetName)
+    if Config.Target == "ox" then
+        Framework[Config.Target].RemoveTargetZone(self.entranceTarget)
+    else
+        local targetName = string.format("%s_%s", self.propertyData.street, self.property_id)
+        Framework[Config.Target].RemoveTargetZone(targetName)
+    end
 
     self:RemoveBlip()
 
@@ -554,6 +554,7 @@ end
 local function findFurnitureDifference(new, old)
     local added = {}
     local removed = {}
+    local edited = {}
 
     for i = 1, #new do
         local found = false
@@ -581,7 +582,13 @@ local function findFurnitureDifference(new, old)
         end
     end
 
-    return added, removed
+    for i = 1, #new do
+        if new[i].movedObject then
+            edited[#edited + 1] = new[i]
+        end
+    end
+
+    return added, removed, edited
 end
 
 -- I think this whole furniture sync is a bit shit, but I cbf thinking 
@@ -589,7 +596,7 @@ function Property:UpdateFurnitures(newFurnitures)
     if not self.inProperty then return end
 
     local oldFurnitures = self.propertyData.furnitures
-    local added, removed = findFurnitureDifference(newFurnitures, oldFurnitures)
+    local added, removed, edited = findFurnitureDifference(newFurnitures, oldFurnitures)
 
     for i = 1, #added do
         local furniture = added[i]
@@ -600,8 +607,27 @@ function Property:UpdateFurnitures(newFurnitures)
         local furniture = removed[i]
         self:UnloadFurniture(furniture)
     end
+    
+    for i = 1, #edited do
+        local furniture = edited[i]
+        self:UnloadFurniture(furniture)
+        self:LoadFurniture(furniture)
+    end
 
-    self.propertyData.furnitures = newFurnitures
+    local furnitures = {}
+
+    for i = 1, #newFurnitures do
+        furnitures[i] = {
+            id = newFurnitures[i].id,
+            label = newFurnitures[i].label,
+            object = newFurnitures[i].object,
+            position = newFurnitures[i].position,
+            rotation = newFurnitures[i].rotation,
+            type = newFurnitures[i].type
+        }
+    end
+
+    self.propertyData.furnitures = furnitures
 
     Modeler:UpdateFurnitures()
 end

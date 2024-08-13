@@ -1,8 +1,8 @@
 Property = {
     property_id = nil,
     propertyData = nil,
-    playersInside = {},   -- src
-    playersDoorbell = {}, -- src
+    playersInside = nil,   -- src
+    playersDoorbell = nil, -- src
 
     raiding = false,
 }
@@ -13,6 +13,9 @@ function Property:new(propertyData)
 
     self.property_id = tostring(propertyData.property_id)
     self.propertyData = propertyData
+
+    self.playersInside = {}
+    self.playersDoorbell = {}
 
     local stashName = string.format("property_%s", propertyData.property_id)
     local stashConfig = Config.Shells[propertyData.shell].stash
@@ -48,6 +51,7 @@ function Property:PlayerEnter(src)
 
     local bucket = tonumber(self.property_id) -- because the property_id is a string
     SetPlayerRoutingBucket(src, bucket)
+    Player(src).state:set('instance', bucket, true)
 end
 
 function Property:PlayerLeave(src)
@@ -67,6 +71,7 @@ function Property:PlayerLeave(src)
     end
 
     SetPlayerRoutingBucket(src, 0)
+    Player(src).state:set('instance', 0, true)
 end
 
 function Property:CheckForAccess(citizenid)
@@ -135,10 +140,23 @@ function Property:StartRaid()
 end
 
 function Property:UpdateFurnitures(furnitures)
-    self.propertyData.furnitures = furnitures
+    local newfurnitures = {}
+
+    for i = 1, #furnitures do
+        newfurnitures[i] = {
+            id = furnitures[i].id,
+            label = furnitures[i].label,
+            object = furnitures[i].object,
+            position = furnitures[i].position,
+            rotation = furnitures[i].rotation,
+            type = furnitures[i].type
+        }
+    end
+
+    self.propertyData.furnitures = newfurnitures
 
     MySQL.update("UPDATE properties SET furnitures = @furnitures WHERE property_id = @property_id", {
-        ["@furnitures"] = json.encode(furnitures),
+        ["@furnitures"] = json.encode(newfurnitures),
         ["@property_id"] = self.property_id
     })
 
@@ -272,14 +290,18 @@ function Property:UpdateOwner(data)
 
     local totalAfterCommission = self.propertyData.price - commission
 
-    if prevPlayer ~= nil then
-        Framework[Config.Notify].Notify(prevPlayer.PlayerData.source, "Sold Property: " .. self.propertyData.street .. " " .. self.property_id, "success")
-        prevPlayer.Functions.AddMoney('bank', totalAfterCommission, "Sold Property: " .. self.propertyData.street .. " " .. self.property_id)
-    elseif previousOwner then
-        MySQL.Async.execute('UPDATE `players` SET `bank` = `bank` + @price WHERE `citizenid` = @citizenid', {
-            ['@citizenid'] = previousOwner,
-            ['@price'] = totalAfterCommission
-        })
+    if Config.QBManagement then
+        exports['qb-banking']:AddMoney(realtor.PlayerData.job.name, totalAfterCommission)
+    else
+        if prevPlayer ~= nil then
+            Framework[Config.Notify].Notify(prevPlayer.PlayerData.source, "Sold Property: " .. self.propertyData.street .. " " .. self.property_id, "success")
+            prevPlayer.Functions.AddMoney('bank', totalAfterCommission, "Sold Property: " .. self.propertyData.street .. " " .. self.property_id)
+        elseif previousOwner then
+            MySQL.Async.execute('UPDATE `players` SET `bank` = `bank` + @price WHERE `citizenid` = @citizenid', {
+                ['@citizenid'] = previousOwner,
+                ['@price'] = totalAfterCommission
+            })
+        end
     end
     
     realtor.Functions.AddMoney('bank', commission, "Commission from Property: " .. self.propertyData.street .. " " .. self.property_id)
@@ -397,7 +419,7 @@ function Property:UpdateGarage(data)
         ["@property_id"] = self.property_id
     })
     
-    TriggerClientEvent("ps-housing:client:updateProperty", -1, "UpdateGarage", self.property_id, garage)
+    TriggerClientEvent("ps-housing:client:updateProperty", -1, "UpdateGarage", self.property_id, newData)
 
     Framework[Config.Logs].SendLog("**Changed Garage** of property with id: " .. self.property_id .. " by: " .. GetPlayerName(realtorSrc))
 
@@ -500,7 +522,7 @@ RegisterNetEvent("ps-housing:server:showcaseProperty", function(property_id)
     local jobName = job.name
     local onDuty = job.onduty
 
-    if jobName == Config.RealtorJobName and onDuty then
+    if RealtorJobs[jobName] and onDuty then
         local showcase = lib.callback.await('ps-housing:cb:showcase', src)
         if showcase == "confirm" then
             property:PlayerEnter(src)
@@ -820,7 +842,7 @@ lib.callback.register('ps-housing:cb:getPropertyInfo', function (source, propert
     local jobName = job.name
     local onDuty = job.onduty
 
-    if  not jobName == Config.RealtorJobName and not onDuty then return end
+    if RealtorJobs[jobName] and not onDuty then return end
 
     local data = {}
 
